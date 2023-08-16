@@ -1,7 +1,6 @@
 import express from "express";
 import bodyParser from "body-parser";
-import ejs from "ejs";
-import _ from "lodash";
+import mongoose from "mongoose";
 
 const app = express();
 app.set("view engine", "ejs");
@@ -13,13 +12,22 @@ const aboutContent = "Hac habitasse platea dictumst vestibulum rhoncus est pelle
 const contactContent = "Scelerisque eleifend donec pretium vulputate sapien. Rhoncus urna neque viverra justo nec ultrices. Arcu dui vivamus arcu felis bibendum. Consectetur adipiscing elit duis tristique. Risus viverra adipiscing at in tellus integer feugiat. Sapien nec sagittis aliquam malesuada bibendum arcu vitae. Consequat interdum varius sit amet mattis. Iaculis nunc sed augue lacus. Interdum posuere lorem ipsum dolor sit amet consectetur adipiscing elit. Pulvinar elementum integer enim neque. Ultrices gravida dictum fusce ut placerat orci nulla. Mauris in aliquam sem fringilla ut morbi tincidunt. Tortor posuere ac ut consequat semper viverra nam libero.";
 
 const port = 3000;
+mongoose.connect("mongodb://0.0.0.0:27017/dailyJournalDB");
 
-let posts = [];
+// Schema and Model for Blog Posts
+const postSchema = new mongoose.Schema({
+    title: String,
+    content: String
+});
+const Post = mongoose.model("Post", postSchema);
 
 app.get("/", (req, res) => {
-    res.render("home", {
-        startingContent: homeStartingContent,
-        posts: posts
+    // Display all the Blog Posts from the database
+    Post.find().then((posts) => {
+        res.render("home", {
+            startingContent: homeStartingContent,
+            posts: posts
+        });
     });
 });
 
@@ -40,27 +48,28 @@ app.route("/compose")
     res.render("compose");
 })
 .post((req, res) => {
-    const post = {
+    // Add the new Blog Post to the database
+    const post = new Post({
         title: req.body.postTitle,
         content: req.body.postContent
-    };
-    posts.push(post);
+    });
 
-    res.redirect("/");
+    post.save().then(() => {
+        res.redirect("/");
+    }).catch((error) => {
+        console.log(error);
+    });
 });
 
-app.get("/posts/:postName", (req, res) => {
-    const requestedTitle = _.lowerCase(req.params.postName);
+app.get("/posts/:postId", (req, res) => {
+    const requestedPostId = req.params.postId;
 
-    posts.forEach((post) => {
-        const storedTitle = _.lowerCase(post.title);
-
-        if (storedTitle === requestedTitle) {
-            res.render("post", {
-                title: post.title,
-                content: post.content
-            });
-        }
+    // Only show the requested Blog Post from the database
+    Post.findById(requestedPostId).then((post) => {
+        res.render("post", {
+            title: post.title,
+            content: post.content
+        });
     });
 });
 
